@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3F4D Pro Scheduler</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png"> 
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --color-pitan: #c3e6cb; --border-pitan: #28a745; --text-pitan: #155724;
+            --color-md: #ffeeba;    --border-md: #e2b709;    --text-md: #856404;
+            --color-pi: #fff9db;    --border-pi: #ffe066;    --text-pi: #856404;
+            --color-f3d: #b8daff;   --border-f3d: #007bff;   --text-f3d: #004085;
+            --color-heading: #d6bcfa; --border-heading: #6b46c1; --text-heading: #322659;
+            --color-base: #e2e8f0;    --border-base: #718096;    --text-base: #1a202c;
+            --ios-accent: #007aff;
+        }
+        body { 
+            background-color: #f4f7f6; 
+            font-size: 0.85rem; 
+            font-family: -apple-system, sans-serif; 
+            padding-bottom: 40px;
+        }
+        
+        .farmer-nav { background: #fff; padding: 10px; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; gap: 10px; overflow-x: auto; position: sticky; top: 0; z-index: 1050; }
+        .farmer-tab { padding: 5px 15px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa; white-space: nowrap; cursor: pointer; transition: 0.2s; }
+        .farmer-tab.active { background: var(--ios-accent); color: white; border-color: var(--ios-accent); font-weight: bold; }
+        .btn-add-farmer { border-radius: 50%; width: 32px; height: 32px; padding: 0; font-weight: bold; flex-shrink: 0; }
+
+        .config-panel { max-height: 100vh; overflow-y: auto; padding: 15px; background: white; border-right: 1px solid #dee2e6; }
+        .main-panel { padding: 15px; }
+        .card { margin-bottom: 10px; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-header { font-weight: bold; background-color: #f8f9fa; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+        .manual-highlight { outline: 3px solid #ff007f !important; }
+        
+        .row-pitan, .input-pitan { background-color: var(--color-pitan) !important; border-left: 8px solid var(--border-pitan) !important; }
+        .row-md, .input-md { background-color: var(--color-md) !important; border-left: 8px solid var(--border-md) !important; }
+        .row-pi, .input-pi { background-color: var(--color-pi) !important; border-left: 8px solid var(--border-pi) !important; }
+        .row-f3d, .input-f3d { background-color: var(--color-f3d) !important; border-left: 8px solid var(--border-f3d) !important; }
+        .row-heading, .input-heading { background-color: var(--color-heading) !important; border-left: 8px solid var(--border-heading) !important; font-weight: bold; }
+        .row-base, .input-base { background-color: var(--color-base) !important; border-left: 8px solid var(--border-base) !important; }
+
+        .yp-toggle-container { border: 2px solid var(--border-pi); border-radius: 8px; padding: 10px; background-color: #fffdf5; margin: 10px 0; }
+        #calendar { background: white; padding: 10px; border-radius: 12px; min-height: 450px; }
+        .memo-list-item { border-left: 5px solid #ffc107; background: #fff; padding: 12px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        .btn-reset-item { padding: 0 5px; font-size: 10px; line-height: 1.5; margin-left: 5px; }
+
+        /* Slide View Styles */
+        .slide-container { position: relative; display: inline-block; width: 100%; max-width: 1000px; margin: 0 auto; }
+        .slide-img { width: 100%; height: auto; display: block; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .date-marker {
+            position: absolute;
+            transform: translate(-50%, 0);
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            padding: 1px 4px;
+            font-weight: bold;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-size: clamp(9px, 1.3vw, 14px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="offline-badge" class="alert alert-warning py-1 m-0 text-center d-none" style="font-size: 11px; border-radius: 0;">
+    Offline Mode: Data saved locally
+</div>
+
+<div class="farmer-nav" id="farmerTabs">
+    <button class="btn btn-outline-primary btn-add-farmer" onclick="addNewFarmer()">+</button>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-4 config-panel">
+            <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold text-primary m-0">
+                        3F4D+MD irrigation scheduler v1 Pro
+                        <span style="font-size: 0.5em; color: #6c757d;">(SANRICE supported by JICA/JST)</span>
+                    </h5>
+                    <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="event.stopPropagation(); confirmResetAll()" style="font-size: 10px;">Hard Reset</button>
+                </div>
+                <div class="d-flex justify-content-end gap-1 mt-1">
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="renameFarmer()" style="font-size: 10px;">Rename farmer</button>
+                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteFarmer()" style="font-size: 10px;">Delete farmer</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseOne">1. Basic settings (days)</div>
+                <div id="collapseOne" class="collapse">
+                    <div class="card-body row g-2">
+                        <div class="col-12">
+                            <label class="small fw-bold">Pitan start after transplanting</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="p_start_off" class="form-control form-control-sm" value="25">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('p_start_off', 25)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">Pitan Duration</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="p_dur" class="form-control form-control-sm" value="4">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('p_dur', 4)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">MD start after sowing seed</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="md_start_off" class="form-control form-control-sm" value="80">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('md_start_off', 80)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">MD duration</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="md_dur" class="form-control form-control-sm" value="8">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('md_dur', 8)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">Heading day after sowing</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="hd_das" class="form-control form-control-sm" value="119">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('hd_das', 119)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">Flooding during panicle initiation before heading</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="pi_off" class="form-control form-control-sm" value="25">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('pi_off', 25)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">3F4D start before heading</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="f3d_off" class="form-control form-control-sm" value="21">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('f3d_off', 21)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">Harvest after heading</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="hv_off" class="form-control form-control-sm" value="28">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('hv_off', 28)">↺</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" data-bs-toggle="collapse" data-bs-target="#collapseTwo" style="cursor: pointer;">2. Date Settings (Adjustable)</div>
+                <div id="collapseTwo" class="collapse show">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <button class="btn btn-xs btn-outline-warning py-0 px-2" onclick="event.stopPropagation(); resetToDefault()" style="font-size: 10px;">Reset Farmer</button>
+                        </div>
+                        <div id="date_inputs_container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8 main-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <ul class="nav nav-tabs border-0" role="tablist">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-table">Table List</button></li>
+                    <li class="nav-item"><button class="nav-link" id="cal-tab" data-bs-toggle="tab" data-bs-target="#tab-cal">Calendar View</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-memos">Notes Log</button></li>
+                    <li class="nav-item"><button class="nav-link text-info fw-bold" data-bs-toggle="tab" data-bs-target="#tab-slide">Irrigation Plan Map</button></li>
+                </ul>
+                <button class="btn btn-success btn-sm fw-bold shadow-sm" onclick="exportToExcel()">CSV</button>
+            </div>
+            
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="tab-table">
+                    <div class="card"><table class="table mb-0"><tbody id="schedule_tbody"></tbody></table></div>
+                </div>
+                
+                <div class="tab-pane fade" id="tab-cal"><div id="calendar"></div></div>
+                
+                <div class="tab-pane fade" id="tab-memos"><div id="memo_log_container" class="p-1"></div></div>
+
+                <div class="tab-pane fade" id="tab-slide">
+                    <div class="card p-2 text-center" style="background: #fff; min-height: 400px;">
+                        <h6 class="fw-bold text-secondary mb-3">Irrigation Schedule Map</h6>
+                        
+                        <div class="slide-container" id="slide_wrapper">
+                            <img src="slide_en_water.png" class="slide-img" alt="Slide Image" onerror="document.getElementById('slide-error').classList.remove('d-none'); this.style.display='none';">
+                            
+                            <div id="slide_markers"></div>
+
+                            <div id="slide-error" class="alert alert-danger d-none mt-5">
+                                <strong>Image not found!</strong><br>
+                                Please ensure <code>slide_en_water.png</code> is in the same folder.
+                            </div>
+                        </div>
+
+                        <div class="mt-3 text-muted" style="font-size: 0.75rem;">
+                            *Dates are automatically mapped.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+<script>
+// --- Service Worker & Config ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW Registered')).catch(err => console.log('SW Error', err));
+    });
+}
+window.addEventListener('offline', () => document.getElementById('offline-badge').classList.remove('d-none'));
+window.addEventListener('online', () => document.getElementById('offline-badge').classList.add('d-none'));
+
+// --- Data Logic ---
+let farmers = JSON.parse(localStorage.getItem('f3d_pro_final_v2')) || [{
+    id: Date.now(), 
+    name: "Farmer 1", 
+    settings: { 
+        p_dur: 4, md_dur: 8, hd_das: 119, pi_off: 25, f3d_off: 21, hv_off: 28,
+        p_start_off: 25, md_start_off: 80 
+    },
+    dates: {}, manualKeys: [], use_yp: false, memos: {}
+}];
+let activeIdx = 0;
+let calendar;
+
+// Sowing and Transplanting marked with *
+const dateKeys = [
+    { id: 'sowing', label: 'Sowing *', type: 'base' },
+    { id: 'tp', label: 'Transplanting *', type: 'base' },
+    { id: 'p_start', label: 'Pitan Start', type: 'pitan' },
+    { id: 'p_end', label: 'Pitan End', type: 'pitan' },
+    { id: 'md_start', label: 'MD Start', type: 'md' },
+    { id: 'md_end', label: 'MD End', type: 'md' },
+    { id: 'pi_flood_start', label: 'Flooding start (Panicle initiation)', type: 'pi' },
+    { id: 'pi_flood_end', label: 'Flooding end', type: 'pi' },
+    { id: 'f3d1', label: '3F4D_1 (Start)', type: 'f3d' },
+    { id: 'f3d2', label: '3F4D_2', type: 'f3d' },
+    { id: 'f3d3', label: '3F4D_3', type: 'f3d' },
+    { id: 'heading', label: 'Heading', type: 'heading' },
+    { id: 'f3d4', label: '3F4D_4', type: 'f3d' },
+    { id: 'f3d5', label: '3F4D_5', type: 'f3d' },
+    { id: 'f3d6', label: '3F4D_6', type: 'f3d' },
+    { id: 'f3d_end', label: '3F4D End', type: 'f3d' },
+    { id: 'last_irr', label: 'Last Irrigation', type: 'base' },
+    { id: 'harvest', label: 'Harvesting', type: 'base' }
+];
+
+// --- Slide View Settings (Updated for slide_en_water.png) ---
+const slideConfig = [
+    { id: 'md_start', left: 9, top: 62 },   
+    { id: 'md_end',   left: 16, top: 62 },  
+    { id: 'f3d1',     left: 21, top: 91 },  
+    { id: 'f3d2',     left: 30, top: 91 },  
+    { id: 'f3d3',     left: 44, top: 91 },  
+    { id: 'f3d4',     left: 54, top: 91 },  
+    { id: 'f3d5',     left: 68, top: 91 },  
+    { id: 'f3d6',     left: 80, top: 91 },  
+    { id: 'f3d_end',  left: 93, top: 91 },  
+    { id: 'harvest',  left: 96, top: 69 }   
+];
+
+function saveToLocal() { localStorage.setItem('f3d_pro_final_v2', JSON.stringify(farmers)); }
+
+function initInputs() {
+    const container = document.getElementById('date_inputs_container');
+    container.innerHTML = "";
+    dateKeys.forEach(k => {
+        container.innerHTML += `<div class="mb-2"><label class="small fw-bold mb-1">${k.label}</label><input type="date" id="date_${k.id}" class="form-control form-control-sm input-${k.type}" onchange="updateFromManual('${k.id}')"></div>`;
+        if (k.id === 'md_end') container.innerHTML += `<div class="yp-toggle-container"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="use_yp" onchange="toggleYP()"><label class="form-check-label small fw-bold" for="use_yp">Manual Young Panicle (1-2mm)</label></div><input type="date" id="date_yp" class="form-control form-control-sm" disabled onchange="updateFromManual('yp')"></div>`;
+    });
+}
+
+function loadActiveFarmer() {
+    const f = farmers[activeIdx];
+    // Load Settings
+    ['p_dur','md_dur','hd_das','pi_off','f3d_off','hv_off'].forEach(k => document.getElementById(k).value = f.settings[k]);
+    document.getElementById('p_start_off').value = f.settings.p_start_off !== undefined ? f.settings.p_start_off : 25;
+    document.getElementById('md_start_off').value = f.settings.md_start_off !== undefined ? f.settings.md_start_off : 80;
+
+    // Load Dates
+    document.getElementById('use_yp').checked = f.use_yp;
+    document.getElementById('date_yp').disabled = !f.use_yp;
+    dateKeys.forEach(k => {
+        const el = document.getElementById('date_'+k.id);
+        el.value = f.dates[k.id] || "";
+        f.manualKeys.includes(k.id) ? el.classList.add('manual-highlight') : el.classList.remove('manual-highlight');
+    });
+    document.getElementById('date_yp').value = f.dates['yp'] || "";
+    recalculate('all');
+}
+
+// Helper to convert Gregorian Date string (YYYY-MM-DD) to Bengali Date string
+function getBengaliDate(gregorianDateStr) {
+    if(!gregorianDateStr) return "";
+    const date = new Date(gregorianDateStr);
+    
+    // Approximate Bengali Calendar (Adjusted for Bangladesh)
+    const bengaliMonths = ["Boishakh", "Joishtho", "Ashar", "Srabon", "Bhadro", "Ashshin", "Kartik", "Ogrohayon", "Poush", "Magh", "Falgun", "Chaitra"];
+    const daysInMonth = [31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 30, 30];
+    
+    // Check for leap year for Falgun (index 10)
+    const year = date.getFullYear();
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+    if(isLeap) daysInMonth[10] = 31;
+
+    // Base date: April 14 is 1st Boishakh
+    let startOfBoishakh = new Date(year, 3, 14); // April 14
+    if(date < startOfBoishakh) {
+        startOfBoishakh = new Date(year - 1, 3, 14);
+    }
+
+    const diffTime = date - startOfBoishakh;
+    let dayOfYear = Math.floor(diffTime / (1000 * 60 * 60 * 24)); // 0-based index
+
+    let currentMonth = 0;
+    while(dayOfYear >= daysInMonth[currentMonth]) {
+        dayOfYear -= daysInMonth[currentMonth];
+        currentMonth++;
+    }
+    
+    const benDay = dayOfYear + 1;
+    const benMonth = bengaliMonths[currentMonth];
+    return `${benDay} ${benMonth}`;
+}
+
+function recalculate(triggerId) {
+    const f = farmers[activeIdx];
+    document.querySelectorAll('.config-panel input[type="number"]').forEach(el => f.settings[el.id] = el.value);
+    
+    const setV = (id, date) => { 
+        if (triggerId === 'all' || !f.manualKeys.includes(id)) { 
+            const el = document.getElementById('date_'+id); 
+            if(!isNaN(date)) { // Check for valid date
+                el.valueAsDate = date; 
+                f.dates[id] = el.value; 
+            }
+        } 
+    };
+
+    // 1. Sowing Dependent (TP, MD)
+    const sowingStr = document.getElementById('date_sowing').value;
+    const sowing = sowingStr ? new Date(sowingStr) : null;
+    
+    if (sowing) {
+        setV('tp', addDays(sowing, 40));
+        setV('md_start', addDays(sowing, parseInt(f.settings.md_start_off)));
+        setV('heading', addDays(sowing, f.settings.hd_das));
+    }
+
+    // Pitan sequence (TP -> P_Start -> P_End)
+    const tpStr = document.getElementById('date_tp').value;
+    if (tpStr) {
+        const tp = new Date(tpStr);
+        setV('p_start', addDays(tp, parseInt(f.settings.p_start_off)));
+        const pStartStr = document.getElementById('date_p_start').value;
+        if(pStartStr) setV('p_end', addDays(new Date(pStartStr), f.settings.p_dur));
+    }
+
+    // MD End (MD_Start -> MD_End)
+    const mdStartStr = document.getElementById('date_md_start').value;
+    if (mdStartStr) {
+        setV('md_end', addDays(new Date(mdStartStr), f.settings.md_dur));
+    }
+
+    // 2. Heading Dependent (Can calculate if Heading exists, even without Sowing)
+    const hdStr = document.getElementById('date_heading').value;
+    if (hdStr) {
+        const hd = new Date(hdStr);
+        const piOff = parseInt(f.settings.pi_off);
+        const f3dOff = parseInt(f.settings.f3d_off);
+
+        // PI Flood Start
+        if (f.use_yp && document.getElementById('date_yp').value) {
+            setV('pi_flood_start', new Date(document.getElementById('date_yp').value));
+        } else {
+            setV('pi_flood_start', addDays(hd, -piOff));
+        }
+        
+        // PI Flood End
+        const piStartStr = document.getElementById('date_pi_flood_start').value;
+        if(piStartStr) setV('pi_flood_end', addDays(new Date(piStartStr), (piOff - f3dOff)));
+        
+        // F3D Start
+        const piEndStr = document.getElementById('date_pi_flood_end').value;
+        if (piEndStr) {
+            setV('f3d1', new Date(piEndStr));
+        } else {
+            setV('f3d1', addDays(hd, -f3dOff));
+        }
+
+        // F3D Loop (Sequence)
+        for(let i=2; i<=6; i++) {
+            const prevStr = document.getElementById(`date_f3d${i-1}`).value;
+            if(prevStr) setV(`f3d${i}`, addDays(new Date(prevStr), 7));
+        }
+        
+        const f3d6Str = document.getElementById('date_f3d6').value;
+        if(f3d6Str) {
+            setV('f3d_end', addDays(new Date(f3d6Str), 7));
+            const f3dEndStr = document.getElementById('date_f3d_end').value;
+            if(f3dEndStr) setV('last_irr', addDays(new Date(f3dEndStr), 1));
+        }
+        
+        setV('harvest', addDays(hd, f.settings.hv_off));
+    }
+    
+    // --- Disable Logic: Only enable subsequent dates if Sowing AND TP are filled ---
+    const sVal = document.getElementById('date_sowing').value;
+    const tVal = document.getElementById('date_tp').value;
+    const allowOthers = sVal && tVal;
+    
+    dateKeys.forEach(k => {
+        if(k.id !== 'sowing' && k.id !== 'tp') {
+            const el = document.getElementById('date_'+k.id);
+            if(el) el.disabled = !allowOthers;
+        }
+    });
+
+    const ypCheck = document.getElementById('use_yp');
+    if(ypCheck) ypCheck.disabled = !allowOthers;
+    
+    const ypDate = document.getElementById('date_yp');
+    if(ypDate) {
+        if(!allowOthers) ypDate.disabled = true;
+        else ypDate.disabled = !ypCheck.checked;
+    }
+    // --------------------------------------------------------------------------
+
+    saveToLocal(); 
+    refreshViews();
+}
+
+// Helper to format Date to YYYY-MM-DD safely
+function formatDateISO(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function refreshViews() {
+    const f = farmers[activeIdx];
+    const events = [];
+    const tbody = document.getElementById('schedule_tbody'); 
+    tbody.innerHTML = "";
+    
+    // Notes
+    const log = document.getElementById('memo_log_container'); 
+    log.innerHTML = "";
+    Object.keys(f.memos).sort().reverse().forEach(date => {
+        events.push({ title: "📝", start: date, color: '#ffc107', textColor: '#000' });
+        log.innerHTML += `<div class="memo-list-item"><strong>${date}:</strong><br>${f.memos[date]}</div>`;
+    });
+
+    // Pitan / MD Background Period Events
+    if (f.dates['p_start'] && f.dates['p_end']) {
+        events.push({
+            start: f.dates['p_start'],
+            end: formatDateISO(addDays(new Date(f.dates['p_end']), 1)),
+            display: 'background',
+            color: '#c3e6cb'
+        });
+    }
+    if (f.dates['md_start'] && f.dates['md_end']) {
+        events.push({
+            start: f.dates['md_start'],
+            end: formatDateISO(addDays(new Date(f.dates['md_end']), 1)),
+            display: 'background',
+            color: '#ffeeba'
+        });
+    }
+
+    // YP Special
+    if(f.use_yp && f.dates['yp']) {
+        events.push({ title: "YP Check", start: f.dates['yp'], color: '#333' });
+        const benDate = getBengaliDate(f.dates['yp']);
+        tbody.innerHTML += `<tr class="row-base"><td>Manual Young Panicle</td><td class="fw-bold text-end">${f.dates['yp']}<br><small class="text-secondary" style="font-size:0.75em;">${benDate}</small></td></tr>`;
+    }
+
+    // Schedule Table & Calendar
+    dateKeys.forEach(k => {
+        const val = f.dates[k.id];
+        if(val) {
+            const benDate = getBengaliDate(val);
+            events.push({ 
+                title: `${k.label} (${benDate})`, 
+                start: val, 
+                allDay: true, 
+                color: { pitan:'#28a745', md:'#e2b709', pi:'#ffe066', f3d:'#007bff', heading:'#6b46c1', base:'#718096' }[k.type] 
+            });
+
+            // 3F4D Specific Cycle Events (Flood 3d / Drain 4d)
+            if (k.id.startsWith('f3d') && k.id !== 'f3d_end') {
+                const startDate = new Date(val);
+                // 3 days Flood
+                events.push({
+                    title: `3F4D Flood`,
+                    start: val,
+                    end: formatDateISO(addDays(new Date(val), 3)),
+                    color: '#0056b3', // Darker blue for flooding
+                    allDay: true
+                });
+                // 4 days Drain
+                events.push({
+                    title: `3F4D Drain`,
+                    start: formatDateISO(addDays(new Date(val), 3)),
+                    end: formatDateISO(addDays(new Date(val), 7)),
+                    color: '#adb5bd', // Gray for drainage
+                    allDay: true
+                });
+            }
+
+            tbody.innerHTML += `<tr class="row-${k.type}"><td>${k.label}</td><td class="fw-bold text-end">${val}<br><small class="text-secondary" style="font-size:0.75em;">${benDate}</small></td></tr>`;
+        }
+    });
+
+    if(calendar) { calendar.removeAllEvents(); calendar.addEventSource(events); }
+
+    // --- Slide View Rendering ---
+    const slideMarkers = document.getElementById('slide_markers');
+    slideMarkers.innerHTML = '';
+    slideConfig.forEach(item => {
+        const dateVal = f.dates[item.id];
+        if(dateVal) {
+            const dObj = new Date(dateVal);
+            const dateStr = `${dObj.getMonth()+1}/${dObj.getDate()}`;
+            
+            const badge = document.createElement('div');
+            badge.className = 'date-marker';
+            badge.style.left = item.left + '%';
+            badge.style.top = item.top + '%';
+            badge.innerText = dateStr;
+            slideMarkers.appendChild(badge);
+        }
+    });
+}
+
+// Utility Functions
+function addDays(d, n) { const res = new Date(d); res.setDate(res.getDate() + parseInt(n)); return res; }
+function resetSetting(id, defaultVal) { document.getElementById(id).value = defaultVal; recalculate('all'); }
+function handleDateClick(info) {
+    const f = farmers[activeIdx];
+    const msg = prompt(`Note for ${info.dateStr}:`, f.memos[info.dateStr] || "");
+    if (msg !== null) { msg === "" ? delete f.memos[info.dateStr] : f.memos[info.dateStr] = msg; saveToLocal(); refreshViews(); }
+}
+function updateFromManual(id) {
+    const el = document.getElementById('date_'+id);
+    if (!farmers[activeIdx].manualKeys.includes(id)) farmers[activeIdx].manualKeys.push(id);
+    farmers[activeIdx].dates[id] = el.value;
+    saveToLocal(); recalculate(id);
+}
+function addNewFarmer() {
+    const name = prompt("Enter Farmer/Field Name:");
+    if (name) { 
+        farmers.push({ 
+            id: Date.now(), name, 
+            settings: { p_dur: 4, md_dur: 8, hd_das: 119, pi_off: 25, f3d_off: 21, hv_off: 28, p_start_off: 25, md_start_off: 80 }, 
+            dates: {}, manualKeys: [], use_yp: false, memos: {} 
+        }); 
+        activeIdx = farmers.length-1; saveToLocal(); renderFarmerTabs(); loadActiveFarmer(); 
+    }
+}
+function renderFarmerTabs() {
+    const container = document.getElementById('farmerTabs');
+    container.querySelectorAll('.farmer-tab').forEach(el => el.remove());
+    farmers.forEach((f, idx) => {
+        const btn = document.createElement('div');
+        btn.className = `farmer-tab ${idx === activeIdx ? 'active' : ''}`;
+        btn.innerText = f.name;
+        btn.onclick = () => { activeIdx = idx; loadActiveFarmer(); renderFarmerTabs(); };
+        container.insertBefore(btn, container.firstChild);
+    });
+}
+function toggleYP() { farmers[activeIdx].use_yp = document.getElementById('use_yp').checked; document.getElementById('date_yp').disabled = !farmers[activeIdx].use_yp; saveToLocal(); recalculate('all'); }
+function renameFarmer() { const n = prompt("New Name:", farmers[activeIdx].name); if(n){ farmers[activeIdx].name = n; saveToLocal(); renderFarmerTabs(); } }
+function deleteFarmer() {
+    if(farmers.length <= 1) { alert("Cannot delete the only farmer. Create another one first."); return; }
+    if(confirm(`Are you sure you want to delete "${farmers[activeIdx].name}"?`)) {
+        farmers.splice(activeIdx, 1);
+        activeIdx = 0;
+        saveToLocal();
+        renderFarmerTabs();
+        loadActiveFarmer();
+    }
+}
+function resetToDefault() { if(confirm("Reset current farmer's manual adjustments?")){ farmers[activeIdx].dates = {}; farmers[activeIdx].manualKeys = []; saveToLocal(); loadActiveFarmer(); } }
+function confirmResetAll() { if(confirm("⚠️ CAUTION: Delete ALL farmers and data?")){ localStorage.clear(); location.reload(); } }
+function exportToExcel() {
+    const f = farmers[activeIdx];
+    let csv = "\uFEFFCategory,Event,Date\n";
+    Object.keys(f.memos).forEach(d => csv += `"Note","${f.memos[d]}","${d}"\n`);
+    dateKeys.forEach(k => { if(f.dates[k.id]) csv += `"Schedule","${k.label}","${f.dates[k.id]}"\n`; });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `3F4D_Pro_${f.name}.csv`; a.click();
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+    initInputs();
+    calendar = new FullCalendar.Calendar(document.getElementById('calendar'), { 
+        initialView: 'dayGridMonth', 
+        headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+        height: 'auto', 
+        dateClick: handleDateClick 
+    });
+    calendar.render(); 
+    renderFarmerTabs(); 
+    loadActiveFarmer();
+    document.getElementById('cal-tab').addEventListener('shown.bs.tab', () => calendar.updateSize());
+    document.querySelectorAll('.config-panel input[type="number"]').forEach(el => el.onchange = () => recalculate('all'));
+});
+</script>
+
+<footer class="text-center mt-5 mb-4 text-secondary" style="font-size: 0.75rem; border-top: 1px solid #dee2e6; padding-top: 20px;">
+<p class="mb-1">This app was developed by Takehiro Kamiya (Univ. Tokyo).</p>
+        <p class="mb-0">Use this application at your own risk.</p>
+</footer>
+
+</body>
+</html>
