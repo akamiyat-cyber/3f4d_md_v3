@@ -22,6 +22,10 @@
             --color-heading: #d6bcfa; --border-heading: #6b46c1; --text-heading: #322659;
             --color-base: #e2e8f0;    --border-base: #718096;    --text-base: #1a202c;
             --ios-accent: #007aff;
+            --color-flood: #007bff;
+            --color-drain: #e9ecef;
+            --warning-bg: #fff5f5;
+            --order-error-bg: #ffe6e6; /* Date order error background */
         }
         body { 
             background-color: #f4f7f6; 
@@ -30,16 +34,19 @@
             padding-bottom: 40px;
         }
         
-        .farmer-nav { background: #fff; padding: 10px; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; gap: 10px; overflow-x: auto; position: sticky; top: 0; z-index: 1050; }
+        .header-section { background: #fff; padding: 10px; border-bottom: 1px solid #dee2e6; position: sticky; top: 0; z-index: 1050; }
+        .farmer-nav { display: flex; align-items: center; gap: 10px; overflow-x: auto; margin-top: 5px; }
         .farmer-tab { padding: 5px 15px; border-radius: 20px; border: 1px solid #ddd; background: #f8f9fa; white-space: nowrap; cursor: pointer; transition: 0.2s; }
         .farmer-tab.active { background: var(--ios-accent); color: white; border-color: var(--ios-accent); font-weight: bold; }
         .btn-add-farmer { border-radius: 50%; width: 32px; height: 32px; padding: 0; font-weight: bold; flex-shrink: 0; }
 
-        .config-panel { max-height: 100vh; overflow-y: auto; padding: 15px; background: white; border-right: 1px solid #dee2e6; }
+        .config-panel { max-height: calc(100vh - 150px); overflow-y: auto; padding: 15px; background: white; border-right: 1px solid #dee2e6; }
         .main-panel { padding: 15px; }
         .card { margin-bottom: 10px; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
         .card-header { font-weight: bold; background-color: #f8f9fa; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
-        .manual-highlight { outline: 3px solid #ff007f !important; }
+        
+        /* Updated Manual Highlight Style: Red Border */
+        .manual-highlight { border: 2px solid red !important; outline: none !important; }
         
         .row-pitan, .input-pitan { background-color: var(--color-pitan) !important; border-left: 8px solid var(--border-pitan) !important; }
         .row-md, .input-md { background-color: var(--color-md) !important; border-left: 8px solid var(--border-md) !important; }
@@ -48,11 +55,19 @@
         .row-heading, .input-heading { background-color: var(--color-heading) !important; border-left: 8px solid var(--border-heading) !important; font-weight: bold; }
         .row-base, .input-base { background-color: var(--color-base) !important; border-left: 8px solid var(--border-base) !important; }
 
+        .date-invalid { background-color: var(--warning-bg) !important; border: 1px solid #dc3545 !important; }
+        .row-error { background-color: var(--order-error-bg) !important; }
+
         .yp-toggle-container { border: 2px solid var(--border-pi); border-radius: 8px; padding: 10px; background-color: #fffdf5; margin: 10px 0; }
         #calendar { background: white; padding: 10px; border-radius: 12px; min-height: 450px; }
         .memo-list-item { border-left: 5px solid #ffc107; background: #fff; padding: 12px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
         .btn-reset-item { padding: 0 5px; font-size: 10px; line-height: 1.5; margin-left: 5px; }
+
+        /* Indicator Styles */
+        .duration-bar { display: flex; height: 6px; border-radius: 3px; background: #eee; margin-top: 4px; overflow: hidden; width: 60px; }
+        .bar-flood { background-color: var(--color-flood); height: 100%; }
+        .bar-drain { background-color: #dee2e6; height: 100%; }
 
         /* Slide View Styles */
         .slide-container { position: relative; display: inline-block; width: 100%; max-width: 1000px; margin: 0 auto; }
@@ -72,6 +87,11 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             font-size: clamp(9px, 1.3vw, 14px);
         }
+
+        /* Logic Viewer Table Styles */
+        .logic-viewer-table { font-size: 0.7rem; color: #4b5563; }
+        .logic-viewer-table th { background-color: #f3f4f6; color: #374151; font-weight: 600; white-space: nowrap; }
+        .logic-viewer-table td { border-bottom: 1px solid #f1f5f9; padding: 4px 8px !important; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -80,27 +100,28 @@
     Offline Mode: Data saved locally
 </div>
 
-<div class="farmer-nav" id="farmerTabs">
-    <button class="btn btn-outline-primary btn-add-farmer" onclick="addNewFarmer()">+</button>
+<div class="header-section">
+    <h5 class="fw-bold text-primary m-0 text-center">
+        3F4D+MD irrigation scheduler v1 Pro
+        <span style="font-size: 0.5em; color: #6c757d;">(SANRICE supported by JICA/JST)</span>
+    </h5>
+    
+    <div class="d-flex flex-column align-items-center mt-2">
+        <div class="farmer-nav" id="farmerTabs">
+            <button class="btn btn-outline-primary btn-add-farmer" onclick="addNewFarmer()">+</button>
+        </div>
+        
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="confirmResetAll()" style="font-size: 10px;">Hard Reset</button>
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="renameFarmer()" style="font-size: 10px;">Rename farmer</button>
+            <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteFarmer()" style="font-size: 10px;">Delete farmer</button>
+        </div>
+    </div>
 </div>
 
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-4 config-panel">
-            <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold text-primary m-0">
-                        3F4D+MD irrigation scheduler v1 Pro
-                        <span style="font-size: 0.5em; color: #6c757d;">(SANRICE supported by JICA/JST)</span>
-                    </h5>
-                    <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="event.stopPropagation(); confirmResetAll()" style="font-size: 10px;">Hard Reset</button>
-                </div>
-                <div class="d-flex justify-content-end gap-1 mt-1">
-                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="renameFarmer()" style="font-size: 10px;">Rename farmer</button>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteFarmer()" style="font-size: 10px;">Delete farmer</button>
-                </div>
-            </div>
-            
             <div class="card">
                 <div class="card-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseOne">1. Basic settings (days)</div>
                 <div id="collapseOne" class="collapse">
@@ -131,6 +152,13 @@
                             <div class="d-flex align-items-center">
                                 <input type="number" id="md_dur" class="form-control form-control-sm" value="8">
                                 <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('md_dur', 8)">↺</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small fw-bold">Panicle Initiation check (day after MD Start)</label>
+                            <div class="d-flex align-items-center">
+                                <input type="number" id="pi_check_off" class="form-control form-control-sm" value="6">
+                                <button class="btn btn-link btn-reset-item text-decoration-none" onclick="resetSetting('pi_check_off', 6)">↺</button>
                             </div>
                         </div>
                         <div class="col-12">
@@ -176,6 +204,48 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-header collapsed" data-bs-toggle="collapse" data-bs-target="#collapseThree" style="cursor: pointer;">3. Logic Configuration (Formulas)</div>
+                <div id="collapseThree" class="collapse">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm logic-viewer-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>日本語</th>
+                                        <th>English</th>
+                                        <th>Bengali</th>
+                                        <th>Logic_En</th>
+                                        <th>Logic_Ben</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>播種日</td><td>Sowing</td><td>বপন</td><td>Setting date</td><td>তারিখ নির্ধারণ (日付設定)</td></tr>
+                                    <tr><td>移植日</td><td>Transplanting</td><td>চারা রোপণ</td><td>Sowing + 40 days</td><td>বপন + ৪০ দিন</td></tr>
+                                    <tr><td>ピタン開始</td><td>Pitan Start</td><td>পিতান শুরু</td><td>Transplanting + Pitan start after transplanting</td><td>চারা রোপণ + চারা রোপণের পর পিতান শুরু</td></tr>
+                                    <tr><td>ピタン終了</td><td>Pitan End</td><td>পিতান শেষ</td><td>Pitan Start + Pitan Duration</td><td>পিতান শুরু + পিতানের সময়কাল</td></tr>
+                                    <tr><td>中干し開始</td><td>MD Start</td><td>এমডি শুরু</td><td>Sowing + MD End</td><td>বপন + বীজ বপনের পর এমডি শুরু</td></tr>
+                                    <tr><td>幼穂形成確認開始</td><td>Panicle Initiation Check start</td><td>শীষ আসার পরীক্ষা শুরু</td><td>MD start + Panicle Initiation check (day after MD Start)</td><td>এমডি শুরু + শীষ আসার পরীক্ষা (এমডি শুরুর পরের দিন)</td></tr>
+                                    <tr><td>中干し終了</td><td>MD End</td><td>এমডি শেষ</td><td>MD Start + MD Duration</td><td>এমডি শুরু + এমডি সময়কাল</td></tr>
+                                    <tr><td>中干し後灌漑開始</td><td>Flooding start (Panicle initiation)</td><td>প্লাবন শুরু (শীষ আসার সময়)</td><td>Heading - Flooding during panicle initiation before heading. ただし、Manual Young Panicle (1-2mm)に入力があればその値を用いる。</td><td>শীষ আসা - (শীষ আসার সময় প্লাবন সময়কাল) তবে, ম্যানুয়াল কচি শীষ (১-২ মিমি) এ ইনপুট থাকলে সেই মান ব্যবহার করা হবে।</td></tr>
+                                    <tr><td>中干し最後の灌漑</td><td>Flooding end</td><td>প্লাবন শেষ</td><td>Flooding Start (Panicle initiation) - (Flooding during panicle initiation before heading  - 3F4D start before heading)</td><td>প্লাবন শুরু - (শীষ আসার সময় প্লাবন - ৩এফ৪ডি শুরু)</td></tr>
+                                    <tr><td>3F4D　1サイクル目</td><td>3F4D_1 (Start)</td><td>৩এফ৪ডি_১ (শুরু)</td><td>Flooding end</td><td>প্লাবন শেষ</td></tr>
+                                    <tr><td>3F4D　2サイクル目</td><td>3F4D_2</td><td>৩এফ৪ডি_২</td><td>3F4D_1 (Start) + 7</td><td>৩এফ৪ডি_১ + ৭ দিন</td></tr>
+                                    <tr><td>3F4D　3サイクル目</td><td>3F4D_3</td><td>৩এফ৪ডি_৩</td><td>3F4D_2 (Start) + 7</td><td>৩এফ৪ডি_２ + ৭ দিন</td></tr>
+                                    <tr><td>出穂日</td><td>Heading</td><td>শীষ আসা</td><td>Heading + Heading day after sowing</td><td>শীষ আসা + বীজ বপনের পর শীষ আসার দিন</td></tr>
+                                    <tr><td>3F4D　4サイクル目</td><td>3F4D_4</td><td>৩এফ৪ডি_৪</td><td>3F4D_3 (Start) + 7</td><td>৩এফ৪ডি_３ +７ দিন</td></tr>
+                                    <tr><td>3F4D　5サイクル目</td><td>3F4D_5</td><td>৩এফ৪ডি_৫</td><td>3F4D_4 (Start) + 7</td><td>৩এফ৪ডি_４ + ７ দিন</td></tr>
+                                    <tr><td>3F4D　6サイクル目</td><td>3F4D_6</td><td>৩এফ৪ডি_৬</td><td>3F4D_5 (Start) + 7</td><td>৩এফ৪ডি_５ + ７ দিন</td></tr>
+                                    <tr><td>3F4D　終了</td><td>3F4D End</td><td>৩এফ৪ডি শেষ</td><td>3F4D_6 + 7</td><td>৩এফ৪ডি_６ + ৭ দিন</td></tr>
+                                    <tr><td>最終灌漑</td><td>Last Irrigation</td><td>শেষ সেচ</td><td>3F4D End + 1</td><td>৩এফ৪ডি শেষ + ১ দিন</td></tr>
+                                    <tr><td>収穫</td><td>Harvesting</td><td>ফসল কাটা</td><td>Heading + Harvest after heading</td><td>শীষ আসা + শীষ আসার পর ফসল কাটা</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="col-md-8 main-panel">
@@ -191,7 +261,18 @@
             
             <div class="tab-content">
                 <div class="tab-pane fade show active" id="tab-table">
-                    <div class="card"><table class="table mb-0"><tbody id="schedule_tbody"></tbody></table></div>
+                    <div class="card">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th>Event</th>
+                                    <th class="text-end">Date / Indicator</th>
+                                    <th class="text-center" style="width: 50px;">Done</th>
+                                </tr>
+                            </thead>
+                            <tbody id="schedule_tbody"></tbody>
+                        </table>
+                    </div>
                 </div>
                 
                 <div class="tab-pane fade" id="tab-cal"><div id="calendar"></div></div>
@@ -236,15 +317,18 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('offline', () => document.getElementById('offline-badge').classList.remove('d-none'));
 window.addEventListener('online', () => document.getElementById('offline-badge').classList.add('d-none'));
 
+// --- Constants for Default Settings ---
+const DEFAULT_SETTINGS = { 
+    p_dur: 4, md_dur: 8, pi_check_off: 6, hd_das: 119, pi_off: 25, f3d_off: 21, hv_off: 28,
+    p_start_off: 25, md_start_off: 80 
+};
+
 // --- Data Logic ---
 let farmers = JSON.parse(localStorage.getItem('f3d_pro_final_v2')) || [{
     id: Date.now(), 
     name: "Farmer 1", 
-    settings: { 
-        p_dur: 4, md_dur: 8, hd_das: 119, pi_off: 25, f3d_off: 21, hv_off: 28,
-        p_start_off: 25, md_start_off: 80 
-    },
-    dates: {}, manualKeys: [], use_yp: false, memos: {}
+    settings: { ...DEFAULT_SETTINGS },
+    dates: {}, manualKeys: [], use_yp: false, memos: {}, completed: [] 
 }];
 let activeIdx = 0;
 let calendar;
@@ -256,6 +340,7 @@ const dateKeys = [
     { id: 'p_start', label: 'Pitan Start', type: 'pitan' },
     { id: 'p_end', label: 'Pitan End', type: 'pitan' },
     { id: 'md_start', label: 'MD Start', type: 'md' },
+    { id: 'pi_check_start', label: 'Panicle Initiation check start', type: 'md' },
     { id: 'md_end', label: 'MD End', type: 'md' },
     { id: 'pi_flood_start', label: 'Flooding start (Panicle initiation)', type: 'pi' },
     { id: 'pi_flood_end', label: 'Flooding end', type: 'pi' },
@@ -291,15 +376,18 @@ function initInputs() {
     const container = document.getElementById('date_inputs_container');
     container.innerHTML = "";
     dateKeys.forEach(k => {
-        container.innerHTML += `<div class="mb-2"><label class="small fw-bold mb-1">${k.label}</label><input type="date" id="date_${k.id}" class="form-control form-control-sm input-${k.type}" onchange="updateFromManual('${k.id}')"></div>`;
-        if (k.id === 'md_end') container.innerHTML += `<div class="yp-toggle-container"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="use_yp" onchange="toggleYP()"><label class="form-check-label small fw-bold" for="use_yp">Manual Young Panicle (1-2mm)</label></div><input type="date" id="date_yp" class="form-control form-control-sm" disabled onchange="updateFromManual('yp')"></div>`;
+        container.innerHTML += `<div class="mb-2"><label class="small fw-bold mb-1">${k.label}</label><div class="d-flex align-items-center gap-2"><input type="date" id="date_${k.id}" class="form-control form-control-sm input-${k.type}" onchange="updateFromManual('${k.id}')"><small id="ben_date_${k.id}" class="text-muted" style="font-size: 0.75rem; white-space: nowrap;"></small></div></div>`;
+        if (k.id === 'md_end') container.innerHTML += `<div class="yp-toggle-container"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="use_yp" onchange="toggleYP()"><label class="form-check-label small fw-bold" for="use_yp">Manual Young Panicle (1-2mm)</label></div><div class="d-flex align-items-center gap-2"><input type="date" id="date_yp" class="form-control form-control-sm" disabled onchange="updateFromManual('yp')"><small id="ben_date_yp" class="text-muted" style="font-size: 0.75rem; white-space: nowrap;"></small></div></div>`;
     });
 }
 
 function loadActiveFarmer() {
     const f = farmers[activeIdx];
+    // Init completed array if missing
+    if(!f.completed) f.completed = [];
+
     // Load Settings
-    ['p_dur','md_dur','hd_das','pi_off','f3d_off','hv_off'].forEach(k => document.getElementById(k).value = f.settings[k]);
+    ['p_dur','md_dur','pi_check_off','hd_das','pi_off','f3d_off','hv_off'].forEach(k => document.getElementById(k).value = f.settings[k] || (k === 'pi_check_off' ? 6 : ""));
     document.getElementById('p_start_off').value = f.settings.p_start_off !== undefined ? f.settings.p_start_off : 25;
     document.getElementById('md_start_off').value = f.settings.md_start_off !== undefined ? f.settings.md_start_off : 80;
 
@@ -351,7 +439,17 @@ function getBengaliDate(gregorianDateStr) {
 
 function recalculate(triggerId) {
     const f = farmers[activeIdx];
-    document.querySelectorAll('.config-panel input[type="number"]').forEach(el => f.settings[el.id] = el.value);
+    
+    // 1. Basic Settings Update & Highlight Check
+    document.querySelectorAll('.config-panel input[type="number"]').forEach(el => {
+        f.settings[el.id] = el.value;
+        // Check if value differs from default
+        if (DEFAULT_SETTINGS[el.id] != el.value) {
+            el.classList.add('manual-highlight');
+        } else {
+            el.classList.remove('manual-highlight');
+        }
+    });
     
     const setV = (id, date) => { 
         if (triggerId === 'all' || !f.manualKeys.includes(id)) { 
@@ -362,6 +460,18 @@ function recalculate(triggerId) {
             }
         } 
     };
+
+    // --- Reverse Calculation to Enable Partial Entry ---
+    if (!document.getElementById('date_sowing').value) {
+        if (document.getElementById('date_heading').value) {
+            setV('sowing', addDays(new Date(document.getElementById('date_heading').value), -parseInt(f.settings.hd_das)));
+        } else if (document.getElementById('date_tp').value) {
+            setV('sowing', addDays(new Date(document.getElementById('date_tp').value), -40));
+        } else if (document.getElementById('date_md_start').value) {
+            setV('sowing', addDays(new Date(document.getElementById('date_md_start').value), -parseInt(f.settings.md_start_off)));
+        }
+    }
+    // -------------------------------------------------
 
     // 1. Sowing Dependent (TP, MD)
     const sowingStr = document.getElementById('date_sowing').value;
@@ -382,10 +492,14 @@ function recalculate(triggerId) {
         if(pStartStr) setV('p_end', addDays(new Date(pStartStr), f.settings.p_dur));
     }
 
-    // MD End (MD_Start -> MD_End)
+    // MD End (MD_Start -> MD_End) + PI Check
     const mdStartStr = document.getElementById('date_md_start').value;
     if (mdStartStr) {
-        setV('md_end', addDays(new Date(mdStartStr), f.settings.md_dur));
+        const mdStart = new Date(mdStartStr);
+        setV('md_end', addDays(mdStart, f.settings.md_dur));
+        // New calculation for PI Check
+        const piCheckOff = f.settings.pi_check_off || 6;
+        setV('pi_check_start', addDays(mdStart, piCheckOff));
     }
 
     // 2. Heading Dependent (Can calculate if Heading exists, even without Sowing)
@@ -431,23 +545,48 @@ function recalculate(triggerId) {
     }
     
     // --- Disable Logic: Only enable subsequent dates if Sowing AND TP are filled ---
+    // Combined with checkbox locking logic
     const sVal = document.getElementById('date_sowing').value;
     const tVal = document.getElementById('date_tp').value;
     const allowOthers = sVal && tVal;
     
     dateKeys.forEach(k => {
-        if(k.id !== 'sowing' && k.id !== 'tp') {
-            const el = document.getElementById('date_'+k.id);
-            if(el) el.disabled = !allowOthers;
+        // Bengali Date Display in Inputs
+        const benSpan = document.getElementById('ben_date_' + k.id);
+        if(benSpan) benSpan.innerText = f.dates[k.id] ? getBengaliDate(f.dates[k.id]) : "";
+
+        // Locking Logic & Highlight Update
+        const el = document.getElementById('date_'+k.id);
+        if(el) {
+            let isDisabled = false;
+            // Rule 1: Sowing/TP dependency
+            if (k.id !== 'sowing' && k.id !== 'tp' && !allowOthers) {
+                isDisabled = true;
+            }
+            // Rule 2: Checkbox completion lock
+            if (f.completed && f.completed.includes(k.id)) {
+                isDisabled = true;
+            }
+            el.disabled = isDisabled;
+
+            // Highlight Check
+            if (f.manualKeys.includes(k.id)) {
+                el.classList.add('manual-highlight');
+            } else {
+                el.classList.remove('manual-highlight');
+            }
         }
     });
 
-    const ypCheck = document.getElementById('use_yp');
-    if(ypCheck) ypCheck.disabled = !allowOthers;
+    // YP special handling
+    const ypSpan = document.getElementById('ben_date_yp');
+    if(ypSpan) ypSpan.innerText = f.dates['yp'] ? getBengaliDate(f.dates['yp']) : "";
     
+    const ypCheck = document.getElementById('use_yp');
     const ypDate = document.getElementById('date_yp');
+    if(ypCheck) ypCheck.disabled = !allowOthers || (f.completed && f.completed.includes('yp'));
     if(ypDate) {
-        if(!allowOthers) ypDate.disabled = true;
+        if(!allowOthers || (f.completed && f.completed.includes('yp'))) ypDate.disabled = true;
         else ypDate.disabled = !ypCheck.checked;
     }
     // --------------------------------------------------------------------------
@@ -497,10 +636,18 @@ function refreshViews() {
     if(f.use_yp && f.dates['yp']) {
         events.push({ title: "YP Check", start: f.dates['yp'], color: '#333' });
         const benDate = getBengaliDate(f.dates['yp']);
-        tbody.innerHTML += `<tr class="row-base"><td>Manual Young Panicle</td><td class="fw-bold text-end">${f.dates['yp']}<br><small class="text-secondary" style="font-size:0.75em;">${benDate}</small></td></tr>`;
+        const isDone = f.completed && f.completed.includes('yp');
+        tbody.innerHTML += `
+            <tr class="row-base">
+                <td>Manual Young Panicle</td>
+                <td class="fw-bold text-end">${f.dates['yp']}<br><small class="text-secondary" style="font-size:0.75em;">${benDate}</small></td>
+                <td class="text-center"><input type="checkbox" class="form-check-input" ${isDone ? 'checked' : ''} onchange="toggleComplete('yp')"></td>
+            </tr>`;
     }
 
     // Schedule Table & Calendar
+    let prevDateStr = null;
+
     dateKeys.forEach(k => {
         const val = f.dates[k.id];
         if(val) {
@@ -533,7 +680,22 @@ function refreshViews() {
                 });
             }
 
-            tbody.innerHTML += `<tr class="row-${k.type}"><td>${k.label}</td><td class="fw-bold text-end">${val}<br><small class="text-secondary" style="font-size:0.75em;">${benDate}</small></td></tr>`;
+            // Order Validation
+            let rowClass = `row-${k.type}`;
+            let warningText = "";
+            if (prevDateStr && val < prevDateStr) {
+                rowClass += " row-error";
+                warningText = ` <span class="badge bg-danger">! Order</span>`;
+            }
+            prevDateStr = val;
+
+            const isDone = f.completed && f.completed.includes(k.id);
+
+            tbody.innerHTML += `<tr class="${rowClass}">
+                <td>${k.label}${warningText}</td>
+                <td class="fw-bold text-end">${val}<br><small class="text-secondary" style="font-size:0.75em;">${benDate}</small></td>
+                <td class="text-center"><input type="checkbox" class="form-check-input" ${isDone ? 'checked' : ''} onchange="toggleComplete('${k.id}')"></td>
+            </tr>`;
         }
     });
 
@@ -577,8 +739,8 @@ function addNewFarmer() {
     if (name) { 
         farmers.push({ 
             id: Date.now(), name, 
-            settings: { p_dur: 4, md_dur: 8, hd_das: 119, pi_off: 25, f3d_off: 21, hv_off: 28, p_start_off: 25, md_start_off: 80 }, 
-            dates: {}, manualKeys: [], use_yp: false, memos: {} 
+            settings: { ...DEFAULT_SETTINGS }, 
+            dates: {}, manualKeys: [], use_yp: false, memos: {}, completed: [] 
         }); 
         activeIdx = farmers.length-1; saveToLocal(); renderFarmerTabs(); loadActiveFarmer(); 
     }
@@ -606,7 +768,7 @@ function deleteFarmer() {
         loadActiveFarmer();
     }
 }
-function resetToDefault() { if(confirm("Reset current farmer's manual adjustments?")){ farmers[activeIdx].dates = {}; farmers[activeIdx].manualKeys = []; saveToLocal(); loadActiveFarmer(); } }
+function resetToDefault() { if(confirm("Reset current farmer's manual adjustments?")){ farmers[activeIdx].dates = {}; farmers[activeIdx].manualKeys = []; farmers[activeIdx].completed = []; saveToLocal(); loadActiveFarmer(); } }
 function confirmResetAll() { if(confirm("⚠️ CAUTION: Delete ALL farmers and data?")){ localStorage.clear(); location.reload(); } }
 function exportToExcel() {
     const f = farmers[activeIdx];
@@ -615,6 +777,18 @@ function exportToExcel() {
     dateKeys.forEach(k => { if(f.dates[k.id]) csv += `"Schedule","${k.label}","${f.dates[k.id]}"\n`; });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `3F4D_Pro_${f.name}.csv`; a.click();
+}
+function toggleComplete(id) {
+    const f = farmers[activeIdx];
+    if (!f.completed) f.completed = [];
+    
+    if (f.completed.includes(id)) {
+        f.completed = f.completed.filter(item => item !== id);
+    } else {
+        f.completed.push(id);
+    }
+    saveToLocal();
+    recalculate('all'); // To update input disabled state
 }
 
 // Init
